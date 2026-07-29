@@ -13,6 +13,7 @@ source of truth for scope and rationale, not this README:
 - [`planning-decisions.md`](./planning-decisions.md) — resolved product/business-rule decisions
 - [`design.md`](./design.md) — UI/UX and screen-level design
 - [`roadmap.md`](./roadmap.md) — phased build plan and sign-off checklists
+- [`docs/backup-restore.md`](./docs/backup-restore.md) — disaster-recovery backup/restore procedure
 
 ## Tech stack
 

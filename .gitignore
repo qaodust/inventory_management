@@ -51,3 +51,6 @@ next-env.d.ts
 .claude/skills/
 .windsurf/skills/
 skills-lock.json
+
+# local database backup dumps (contain real business data)
+/backups/
