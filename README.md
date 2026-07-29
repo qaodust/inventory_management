@@ -1,36 +1,86 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Inventory
 
-## Getting Started
+Internal inventory, shipment, and sales tracking app for a two-person
+bulk-import business. Not a public product — built for exactly two
+users (the owners).
 
-First, run the development server:
+## Planning docs
+
+Read these before making product or schema decisions — they're the
+source of truth for scope and rationale, not this README:
+
+- [`vision.md`](./vision.md) — original requirements
+- [`planning-decisions.md`](./planning-decisions.md) — resolved product/business-rule decisions
+- [`design.md`](./design.md) — UI/UX and screen-level design
+- [`roadmap.md`](./roadmap.md) — phased build plan and sign-off checklists
+
+## Tech stack
+
+- [Next.js 16](https://nextjs.org) (App Router, TypeScript, Turbopack) — note: this major version has breaking changes from older Next.js conventions; see `AGENTS.md` before writing app code
+- [Tailwind CSS v4](https://tailwindcss.com)
+- [Prisma 7](https://www.prisma.io) with the `@prisma/adapter-pg` driver adapter, targeting Postgres
+- [Railway](https://railway.app) for hosting (app + Postgres)
+
+## Local development
+
+### Prerequisites
+
+- Node.js 20.9+ (developed against v24)
+- Access to the project's Railway Postgres instance (or a local Postgres instance)
+- [Railway CLI](https://docs.railway.app/guides/cli) if you need to pull the shared database URL: `railway login`, then `railway variables --service Postgres`
+
+### Setup
 
 ```bash
+npm install
+
+# Create .env with a DATABASE_URL pointing at Postgres.
+# For the shared dev database, use the DATABASE_PUBLIC_URL value from
+# `railway variables --service Postgres` (the private railway.internal
+# URL only resolves inside Railway's network).
+cp .env.example .env   # if present, otherwise create manually — see prisma/schema.prisma
+
+npx prisma generate
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Database workflow
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The Prisma client is generated into `src/generated/prisma` (gitignored,
+regenerate with `npx prisma generate` after pulling schema changes).
 
-## Learn More
+```bash
+npx prisma generate     # regenerate client after a schema change
+npx prisma db push      # push schema changes to the database (no migration history)
+```
 
-To learn more about Next.js, take a look at the following resources:
+Schema lives in `prisma/schema.prisma`; connection config is in
+`prisma.config.ts`.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Other scripts
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+npm run build   # production build
+npm run lint    # eslint
+```
 
-## Deploy on Vercel
+## Repo structure
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```
+src/
+  app/                route segments (App Router); each top-level nav
+                       section has its own page.tsx
+  components/
+    nav/               responsive nav shell (desktop sidebar / mobile
+                       bottom nav)
+  lib/                 shared utilities (nav config, Prisma client)
+  generated/prisma/    generated Prisma client (gitignored)
+prisma/
+  schema.prisma        data model
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Deployment
+
+Hosted on Railway. The `production` environment deploys from `main`.
