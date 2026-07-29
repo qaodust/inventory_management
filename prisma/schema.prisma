@@ -1,0 +1,21 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// Trivial table used only to confirm Prisma <-> Postgres connectivity
+// during Phase 0. Safe to remove once the real schema (Phase 0.5) lands.
+model ConnectivityCheck {
+  id        String   @id @default(cuid())
+  note      String
+  createdAt DateTime @default(now())
+}

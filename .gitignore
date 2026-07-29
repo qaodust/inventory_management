@@ -42,3 +42,11 @@ next-env.d.ts
 
 # claude code local settings
 .claude/settings.local.json
+
+/src/generated/prisma
+
+# auto-installed AI agent reference docs (regenerate via `npx prisma init`)
+.agents/skills/
+.claude/skills/
+.windsurf/skills/
+skills-lock.json
