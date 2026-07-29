@@ -13,7 +13,7 @@ Step-by-step build plan for the inventory app, derived from `vision.md` (require
 
 | Phase | Name | Status |
 |---|---|---|
-| 0 | Foundation & Deployment Skeleton | Not Started |
+| 0 | Foundation & Deployment Skeleton | Tasks complete, pending user sign-off |
 | 0.5 | Data Model & Business Rules | Not Started |
 | 1 | Authentication | Not Started |
 | 2 | Manufacturers | Not Started |
@@ -29,18 +29,18 @@ Step-by-step build plan for the inventory app, derived from `vision.md` (require
 
 ## Phase 0: Foundation & Deployment Skeleton
 
-**Phase Status:** Not Started
+**Phase Status:** Tasks complete, pending user sign-off
 **Goal:** Prove the full pipeline — code to live URL — works before building real features on top of it.
 
 ### Tasks
-- [ ] Scaffold Next.js (TypeScript) app.
-- [ ] Set up Railway project with Postgres database attached.
-- [ ] Connect app to Postgres (connection string via env vars).
-- [ ] Set up chosen ORM/migration tool (e.g., Prisma or Drizzle) with a trivial test table to confirm DB connectivity.
-- [ ] Deploy skeleton app to Railway; confirm live URL is reachable.
-- [ ] Add a placeholder home page confirming responsive shell (basic nav per `design.md` IA, even if links are dead).
-- [ ] Set up basic repo structure/conventions (folders for pages, components, db, etc.) and a README with local dev setup steps.
-- [ ] Verify Railway database backup capabilities and document a tested restore procedure (disaster recovery only — no separate business-data export feature).
+- [x] Scaffold Next.js (TypeScript) app.
+- [x] Set up Railway project with Postgres database attached.
+- [x] Connect app to Postgres (connection string via env vars).
+- [x] Set up chosen ORM/migration tool (e.g., Prisma or Drizzle) with a trivial test table to confirm DB connectivity.
+- [x] Deploy skeleton app to Railway; confirm live URL is reachable. Live at https://inventory-production-fd08.up.railway.app
+- [x] Add a placeholder home page confirming responsive shell (basic nav per `design.md` IA, even if links are dead).
+- [x] Set up basic repo structure/conventions (folders for pages, components, db, etc.) and a README with local dev setup steps.
+- [x] Verify Railway database backup capabilities and document a tested restore procedure (disaster recovery only — no separate business-data export feature). See `docs/backup-restore.md`.
 
 ### Phase Testing (with user)
 - [ ] User visits the live Railway URL from a PC browser.
