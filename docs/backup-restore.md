@@ -23,9 +23,11 @@ required, no dependency on Railway's plan.
 
 These scripts only ever handle **data**. Schema (tables, columns,
 constraints, indexes) is not part of the backup file — it already
-lives in git as `prisma/schema.prisma` and is reproduced on a target
-database with `npx prisma db push`. Restoring into a fresh database is
-always a two-step process: recreate the schema, then restore the data.
+lives in git as `prisma/schema.prisma` plus the committed migration
+history under `prisma/migrations/`, and is reproduced on a target
+database with `npx prisma migrate deploy`. Restoring into a fresh
+database is always a two-step process: recreate the schema, then
+restore the data.
 
 ### Take a backup
 
@@ -46,8 +48,11 @@ after running it.
 
 ```bash
 # 1. Recreate the schema on the target database (fresh Railway Postgres,
-#    or any database that doesn't already have these tables):
-npx prisma db push
+#    or any database that doesn't already have these tables). This
+#    replays the committed migration history in prisma/migrations/,
+#    unlike `db push` which only ever applies the current schema.prisma
+#    with no history:
+npx prisma migrate deploy
 
 # 2. Restore the data:
 npx tsx scripts/db-restore.ts backups/backup-<timestamp>.json
@@ -109,6 +114,14 @@ the live Railway Postgres instance, including a real foreign-key
 relationship and an atomic, dependency-ordered restore — not just the
 single trivial table used in the original Phase 0 verification.
 
+**Note:** this drill was run when step 1 of the restore procedure was
+still `npx prisma db push` (pre-Phase-0.5). The schema-recreation
+mechanism has since changed to `npx prisma migrate deploy`
+(versioned migrations, see `prisma/migrations/`); the data-restore
+half of the drill (steps 2-6 above) is unaffected, but the drill
+hasn't been re-run against the new schema-recreation step and should
+be before relying on it in a real disaster.
+
 ## Recommended cadence
 
 Not yet automated. Before real business data accumulates (Phase 4+),
@@ -119,7 +132,7 @@ Railway.
 ## Known limitations
 
 - Data-only: schema must be recreated separately via
-  `npx prisma db push` before restoring data (see above).
+  `npx prisma migrate deploy` before restoring data (see above).
 - Row order within a single self-referential table isn't guaranteed
   during restore.
 - A genuine circular foreign-key dependency across two or more tables

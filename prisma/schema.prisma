@@ -12,10 +12,150 @@ datasource db {
   provider = "postgresql"
 }
 
-// Trivial table used only to confirm Prisma <-> Postgres connectivity
-// during Phase 0. Safe to remove once the real schema (Phase 0.5) lands.
-model ConnectivityCheck {
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  loggedShipments   Shipment[]
+  loggedSales       Sale[]
+  loggedAdjustments InventoryAdjustment[]
+}
+
+model Manufacturer {
+  id              String   @id @default(cuid())
+  name            String   @unique
+  qualityRating   Int?
+  qualityNote     String?
+  easeOfUseRating Int?
+  easeOfUseNote   String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  shipments Shipment[]
+
+  @@index([name])
+}
+
+model Category {
   id        String   @id @default(cuid())
-  note      String
+  name      String   @unique
   createdAt DateTime @default(now())
+
+  products Product[]
+}
+
+model Product {
+  id         String    @id @default(cuid())
+  name       String
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  goalPrice  Decimal?  @db.Decimal(12, 2)
+  hidden     Boolean   @default(false)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  shipments Shipment[]
+  sales     Sale[]
+
+  @@index([categoryId])
+  @@index([hidden])
+  @@index([name])
+}
+
+model Shipment {
+  id                  String    @id @default(cuid())
+  manufacturerId      String
+  manufacturer        Manufacturer @relation(fields: [manufacturerId], references: [id], onDelete: Restrict)
+  productId           String
+  product             Product   @relation(fields: [productId], references: [id], onDelete: Restrict)
+  quantityOrdered     Int
+  productCost         Decimal   @db.Decimal(12, 2)
+  shippingFee         Decimal   @db.Decimal(12, 2)
+  orderDate           DateTime  @db.Date
+  expectedArrivalDate DateTime? @db.Date
+  arrivalDate         DateTime? @db.Date
+  loggedByUserId      String
+  loggedByUser        User      @relation(fields: [loggedByUserId], references: [id], onDelete: Restrict)
+  createdAt           DateTime  @default(now())
+  updatedAt            DateTime @updatedAt
+
+  adjustments InventoryAdjustment[]
+  allocations SaleAllocation[]
+
+  @@index([productId, arrivalDate, id])
+  @@index([manufacturerId, arrivalDate])
+  @@index([arrivalDate])
+}
+
+enum AdjustmentReason {
+  DAMAGE
+  LOSS
+  SAMPLE
+  RETURN
+  COUNT_CORRECTION
+  OTHER
+}
+
+model InventoryAdjustment {
+  id            String   @id @default(cuid())
+  shipmentId    String
+  shipment      Shipment @relation(fields: [shipmentId], references: [id], onDelete: Restrict)
+  quantityDelta Int
+  reason        AdjustmentReason
+  note          String?
+  effectiveDate DateTime @db.Date
+  actingUserId  String
+  actingUser    User     @relation(fields: [actingUserId], references: [id], onDelete: Restrict)
+  createdAt     DateTime @default(now())
+
+  @@index([shipmentId])
+}
+
+model SaleRoute {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  sales Sale[]
+}
+
+model Sale {
+  id             String    @id @default(cuid())
+  productId      String
+  product        Product   @relation(fields: [productId], references: [id], onDelete: Restrict)
+  quantity       Int
+  pricePerUnit   Decimal   @db.Decimal(12, 2)
+  saleRouteId    String
+  saleRoute      SaleRoute @relation(fields: [saleRouteId], references: [id], onDelete: Restrict)
+  saleDate       DateTime  @db.Date
+  loggedByUserId String
+  loggedByUser   User      @relation(fields: [loggedByUserId], references: [id], onDelete: Restrict)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  allocations SaleAllocation[]
+
+  @@index([productId, saleDate])
+  @@index([saleRouteId, saleDate])
+}
+
+model SaleAllocation {
+  id             String   @id @default(cuid())
+  saleId         String
+  sale           Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  shipmentId     String
+  shipment       Shipment @relation(fields: [shipmentId], references: [id], onDelete: Restrict)
+  quantity       Int
+  unitStartIndex Int
+  costBasisCents Int
+  sequence       Int      @unique @default(autoincrement())
+  createdAt      DateTime @default(now())
+
+  @@index([shipmentId, sequence])
+  @@index([saleId])
 }

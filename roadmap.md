@@ -13,8 +13,8 @@ Step-by-step build plan for the inventory app, derived from `vision.md` (require
 
 | Phase | Name | Status |
 |---|---|---|
-| 0 | Foundation & Deployment Skeleton | Tasks complete, pending user sign-off |
-| 0.5 | Data Model & Business Rules | Not Started |
+| 0 | Foundation & Deployment Skeleton | Complete |
+| 0.5 | Data Model & Business Rules | In Progress |
 | 1 | Authentication | Not Started |
 | 2 | Manufacturers | Not Started |
 | 3 | Products | Not Started |
@@ -29,7 +29,7 @@ Step-by-step build plan for the inventory app, derived from `vision.md` (require
 
 ## Phase 0: Foundation & Deployment Skeleton
 
-**Phase Status:** Tasks complete, pending user sign-off
+**Phase Status:** Complete
 **Goal:** Prove the full pipeline — code to live URL — works before building real features on top of it.
 
 ### Tasks
@@ -43,31 +43,31 @@ Step-by-step build plan for the inventory app, derived from `vision.md` (require
 - [x] Verify Railway database backup capabilities and document a tested restore procedure (disaster recovery only — no separate business-data export feature). See `docs/backup-restore.md`.
 
 ### Phase Testing (with user)
-- [ ] User visits the live Railway URL from a PC browser.
-- [ ] User visits the live Railway URL from an Android and/or iOS phone browser.
-- [ ] Confirm the placeholder page loads without errors on both.
-- [ ] Confirm basic responsive layout shift is visible between PC and mobile (even if just nav placeholder).
+- [x] User visits the live Railway URL from a PC browser.
+- [x] User visits the live Railway URL from an Android and/or iOS phone browser.
+- [x] Confirm the placeholder page loads without errors on both.
+- [x] Confirm basic responsive layout shift is visible between PC and mobile (even if just nav placeholder).
 
 ---
 
 ## Phase 0.5: Data Model & Business Rules
 
-**Phase Status:** Not Started
+**Phase Status:** Implementation Complete — Pending Owner Sign-off
 **Goal:** Lock down financially correct history, inventory behavior, and database constraints before building feature pages.
 
 ### Tasks
-- [ ] Write the exact Postgres/ORM schema for users, manufacturers, categories, products, shipments/batches (incl. optional expected-arrival date), inventory adjustments, sale routes, sales, and sale allocations.
-- [ ] Define foreign keys, indexes, uniqueness rules, quantity/money/rating checks, timestamps, and audit-user fields.
-- [ ] Define fixed-precision money types and a deterministic fractional-cent reconciliation rule.
-- [ ] Derive remaining inventory from received quantity, sale allocations, and inventory adjustments.
-- [ ] Specify FIFO ordering, including a stable tie-breaker for equal arrival dates.
-- [ ] Specify sale creation as one atomic transaction with stock validation and row-level concurrency protection (prevents overselling; insufficient stock rejects the whole sale).
-- [ ] Specify direct edit/delete behavior (confirmation-gated) for sales and shipments, and how downstream remaining quantity, cost/unit, and allocations recompute live when one is edited. No formal reversal ledger.
-- [ ] Enforce sale date = today only (no backdating) at the schema/application level.
-- [ ] Define business-date/report behavior for `America/New_York`, UTC timestamps, and date-only events.
-- [ ] Define manufacturer profit attribution through consumed shipment batches.
-- [ ] Define the reliability calculation (% delivered on/before expected-arrival date) and the "not enough data yet" threshold.
-- [ ] Implement automated tests for single-batch FIFO, multi-batch FIFO, exact sell-out, insufficient stock (rejection), simultaneous sales (oversell protection), fractional costs, and inventory adjustments.
+- [x] Write the exact Postgres/ORM schema for users, manufacturers, categories, products, shipments/batches (incl. optional expected-arrival date), inventory adjustments, sale routes, sales, and sale allocations.
+- [x] Define foreign keys, indexes, uniqueness rules, quantity/money/rating checks, timestamps, and audit-user fields.
+- [x] Define fixed-precision money types and a deterministic fractional-cent reconciliation rule.
+- [x] Derive remaining inventory from received quantity, sale allocations, and inventory adjustments.
+- [x] Specify FIFO ordering, including a stable tie-breaker for equal arrival dates.
+- [x] Specify sale creation as one atomic transaction with stock validation and row-level concurrency protection (prevents overselling; insufficient stock rejects the whole sale).
+- [x] Specify direct edit/delete behavior (confirmation-gated) for sales and shipments, and how downstream remaining quantity, cost/unit, and allocations recompute live when one is edited. No formal reversal ledger.
+- [x] Enforce sale date = today only (no backdating) at the schema/application level.
+- [x] Define business-date/report behavior for `America/New_York`, UTC timestamps, and date-only events.
+- [x] Define manufacturer profit attribution through consumed shipment batches.
+- [x] Define the reliability calculation (% delivered on/before expected-arrival date) and the "not enough data yet" threshold.
+- [x] Implement automated tests for single-batch FIFO, multi-batch FIFO, exact sell-out, insufficient stock (rejection), simultaneous sales (oversell protection), fractional costs, and inventory adjustments.
 
 ### Phase Testing (with user)
 - [ ] Walk through representative shipment and sale examples with both owners and manually reconcile inventory and profit.
