@@ -54,3 +54,6 @@ skills-lock.json
 
 # local database backup dumps (contain real business data)
 /backups/
+
+# personal Codex review notes — not a project artifact, never committed
+/codex_review.md

@@ -63,7 +63,7 @@ Step-by-step build plan for the inventory app, derived from `vision.md` (require
 - [x] Specify FIFO ordering, including a stable tie-breaker for equal arrival dates.
 - [x] Specify sale creation as one atomic transaction with stock validation and row-level concurrency protection (prevents overselling; insufficient stock rejects the whole sale).
 - [x] Specify direct edit/delete behavior (confirmation-gated) for sales and shipments, and how downstream remaining quantity, cost/unit, and allocations recompute live when one is edited. No formal reversal ledger.
-- [x] Enforce sale date = today only (no backdating) at the schema/application level.
+- [x] Enforce sale date = today only (no backdating) at the application-service level (`createSale` always sets it server-side; there is no database-level constraint, since the only supported write path is that service).
 - [x] Define business-date/report behavior for `America/New_York`, UTC timestamps, and date-only events.
 - [x] Define manufacturer profit attribution through consumed shipment batches.
 - [x] Define the reliability calculation (% delivered on/before expected-arrival date) and the "not enough data yet" threshold.

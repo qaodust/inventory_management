@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { PrismaClient } from "@/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
+import { assertSafeTestTarget } from "./db-guard";
 
 /**
  * The `?schema=` query param is understood by Prisma's CLI/migration
@@ -36,12 +37,7 @@ function requireTestDatabaseUrl(): string {
         "dedicated test schema, never the app's real DATABASE_URL."
     );
   }
-  if (testUrl === appUrl) {
-    throw new Error(
-      "TEST_DATABASE_URL must not be identical to DATABASE_URL — tests " +
-        "would run against real business data."
-    );
-  }
+  assertSafeTestTarget(testUrl, appUrl);
   return testUrl;
 }
 

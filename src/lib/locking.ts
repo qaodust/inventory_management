@@ -2,14 +2,15 @@ import { Prisma } from "@/generated/prisma/client";
 
 export interface LockedShipmentRow {
   id: string;
-  arrivalDate: Date;
+  productId: string;
+  arrivalDate: Date | null;
   quantityOrdered: number;
   /** Decimal(12,2) columns come back from the raw pg driver as strings — pass straight into decimalToCents(). */
   productCost: string;
   shippingFee: string;
 }
 
-const LOCKED_SHIPMENT_COLUMNS = `id, "arrivalDate", "quantityOrdered", "productCost", "shippingFee"`;
+const LOCKED_SHIPMENT_COLUMNS = `id, "productId", "arrivalDate", "quantityOrdered", "productCost", "shippingFee"`;
 
 /**
  * Locks (SELECT ... FOR UPDATE) every arrived batch for a product, in

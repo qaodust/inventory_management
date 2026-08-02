@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { testPrisma } from "../db";
+import { createAdjustment } from "@/lib/inventory-adjustments";
+import { AdjustmentReason } from "@/generated/prisma/client";
 import { createSale } from "@/lib/sales";
-import { editShipment, ShipmentQuantityReductionError } from "@/lib/shipments";
-import { createBaseFixtures, createShipment } from "./factories";
+import { editShipment, ShipmentIdentityLockedError, ShipmentQuantityReductionError } from "@/lib/shipments";
+import { createBaseFixtures, createProduct, createShipment } from "./factories";
 
 describe("editShipment", () => {
   it("repacks every existing allocation when productCost changes", async () => {
@@ -96,5 +98,123 @@ describe("editShipment", () => {
     });
     // 10000 cents / 6 units = 1666 base, remainder 4 -> first 4 units get 1667
     expect(alloc.costBasisCents).toBe(1667 * 4);
+  });
+
+  it("rejects changing productId once the batch has a sale allocation", async () => {
+    const { user, manufacturer, product, saleRoute } = await createBaseFixtures();
+    const otherProduct = await createProduct();
+    const shipment = await createShipment({
+      manufacturerId: manufacturer.id,
+      productId: product.id,
+      loggedByUserId: user.id,
+      quantityOrdered: 10,
+      productCost: "100.00",
+      shippingFee: "0.00",
+      orderDate: "2026-01-01",
+      arrivalDate: "2026-01-02",
+    });
+    await createSale(testPrisma, {
+      productId: product.id,
+      quantity: 2,
+      pricePerUnit: "25.00",
+      saleRouteId: saleRoute.id,
+      loggedByUserId: user.id,
+    });
+
+    await expect(
+      editShipment(testPrisma, shipment.id, { productId: otherProduct.id })
+    ).rejects.toThrow(ShipmentIdentityLockedError);
+
+    const unchanged = await testPrisma.shipment.findUniqueOrThrow({ where: { id: shipment.id } });
+    expect(unchanged.productId).toBe(product.id);
+  });
+
+  it("rejects changing productId once the batch has an inventory adjustment", async () => {
+    const { user, manufacturer, product } = await createBaseFixtures();
+    const otherProduct = await createProduct();
+    const shipment = await createShipment({
+      manufacturerId: manufacturer.id,
+      productId: product.id,
+      loggedByUserId: user.id,
+      quantityOrdered: 10,
+      productCost: "100.00",
+      shippingFee: "0.00",
+      orderDate: "2026-01-01",
+      arrivalDate: "2026-01-02",
+    });
+    await createAdjustment(testPrisma, {
+      shipmentId: shipment.id,
+      quantityDelta: -1,
+      reason: AdjustmentReason.DAMAGE,
+      effectiveDate: "2026-01-03",
+      actingUserId: user.id,
+    });
+
+    await expect(
+      editShipment(testPrisma, shipment.id, { productId: otherProduct.id })
+    ).rejects.toThrow(ShipmentIdentityLockedError);
+  });
+
+  it("allows changing productId when the batch has no allocations or adjustments", async () => {
+    const { user, manufacturer, product } = await createBaseFixtures();
+    const otherProduct = await createProduct();
+    const shipment = await createShipment({
+      manufacturerId: manufacturer.id,
+      productId: product.id,
+      loggedByUserId: user.id,
+      quantityOrdered: 10,
+      productCost: "100.00",
+      shippingFee: "0.00",
+      orderDate: "2026-01-01",
+      arrivalDate: "2026-01-02",
+    });
+
+    const updated = await editShipment(testPrisma, shipment.id, { productId: otherProduct.id });
+    expect(updated.productId).toBe(otherProduct.id);
+  });
+
+  it("rejects changing arrivalDate once the batch has a sale allocation", async () => {
+    const { user, manufacturer, product, saleRoute } = await createBaseFixtures();
+    const shipment = await createShipment({
+      manufacturerId: manufacturer.id,
+      productId: product.id,
+      loggedByUserId: user.id,
+      quantityOrdered: 10,
+      productCost: "100.00",
+      shippingFee: "0.00",
+      orderDate: "2026-01-01",
+      arrivalDate: "2026-01-02",
+    });
+    await createSale(testPrisma, {
+      productId: product.id,
+      quantity: 2,
+      pricePerUnit: "25.00",
+      saleRouteId: saleRoute.id,
+      loggedByUserId: user.id,
+    });
+
+    await expect(
+      editShipment(testPrisma, shipment.id, { arrivalDate: "2026-01-10" })
+    ).rejects.toThrow(ShipmentIdentityLockedError);
+    await expect(
+      editShipment(testPrisma, shipment.id, { arrivalDate: null })
+    ).rejects.toThrow(ShipmentIdentityLockedError);
+  });
+
+  it("allows changing arrivalDate when the batch has no sale allocations yet", async () => {
+    const { user, manufacturer, product } = await createBaseFixtures();
+    const shipment = await createShipment({
+      manufacturerId: manufacturer.id,
+      productId: product.id,
+      loggedByUserId: user.id,
+      quantityOrdered: 10,
+      productCost: "100.00",
+      shippingFee: "0.00",
+      orderDate: "2026-01-01",
+      arrivalDate: null,
+    });
+
+    const updated = await editShipment(testPrisma, shipment.id, { arrivalDate: "2026-01-05" });
+    expect(updated.arrivalDate).not.toBeNull();
   });
 });

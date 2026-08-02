@@ -61,12 +61,34 @@ export class ShipmentQuantityReductionError extends Error {
   }
 }
 
+export class ShipmentIdentityLockedError extends Error {
+  constructor(shipmentId: string, field: "productId" | "arrivalDate") {
+    super(
+      `Cannot change ${field} on shipment ${shipmentId}: it already has sale ` +
+        `allocations and/or inventory adjustments recorded against it. Changing ` +
+        `which product a consumed batch belongs to, or its FIFO arrival ` +
+        `position, would corrupt the history already recorded against it.`
+    );
+    this.name = "ShipmentIdentityLockedError";
+  }
+}
+
+function dateEquals(a: Date | null, b: Date | null): boolean {
+  if (a === null || b === null) return a === b;
+  return a.getTime() === b.getTime();
+}
+
 /**
  * Edits a batch. Rejects a quantityOrdered reduction that would drive
  * the batch's derived remaining quantity negative. If the cost
  * (productCost/shippingFee) or quantity changes, fully repacks every
  * existing allocation against this batch since the per-unit cost split
- * itself changes even with no allocation added or removed.
+ * itself changes even with no allocation added or removed. Rejects
+ * changing productId once the batch has any sale allocations or
+ * inventory adjustments (would silently reattribute recorded history to
+ * a different product), and rejects changing arrivalDate once the batch
+ * has any sale allocations (would invalidate the FIFO order those
+ * allocations were made under).
  */
 export async function editShipment(
   prisma: PrismaClient,
@@ -77,6 +99,25 @@ export async function editShipment(
     const locked = await lockShipment(tx, shipmentId);
     if (!locked) {
       throw new Error(`Shipment ${shipmentId} not found`);
+    }
+
+    const productIdChanged =
+      input.productId !== undefined && input.productId !== locked.productId;
+    const arrivalDateChanged =
+      input.arrivalDate !== undefined &&
+      !dateEquals(toUtcDateOrNull(input.arrivalDate) ?? null, locked.arrivalDate);
+
+    if (productIdChanged || arrivalDateChanged) {
+      const [allocationCount, adjustmentCount] = await Promise.all([
+        tx.saleAllocation.count({ where: { shipmentId } }),
+        tx.inventoryAdjustment.count({ where: { shipmentId } }),
+      ]);
+      if (productIdChanged && allocationCount + adjustmentCount > 0) {
+        throw new ShipmentIdentityLockedError(shipmentId, "productId");
+      }
+      if (arrivalDateChanged && allocationCount > 0) {
+        throw new ShipmentIdentityLockedError(shipmentId, "arrivalDate");
+      }
     }
 
     const newQuantityOrdered = input.quantityOrdered ?? locked.quantityOrdered;

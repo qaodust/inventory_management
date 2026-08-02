@@ -12,6 +12,18 @@ export class AdjustmentWouldGoNegativeError extends Error {
   }
 }
 
+export class AdjustmentWouldExceedQuantityError extends Error {
+  constructor(currentRemaining: number, quantityDelta: number, quantityOrdered: number) {
+    super(
+      `Cannot apply adjustment of ${quantityDelta}: batch has ${currentRemaining} ` +
+        `unit(s) remaining and this would push it above the batch's original ` +
+        `quantityOrdered (${quantityOrdered}). A positive adjustment may only ` +
+        `restore units previously removed, not exceed the original order quantity.`
+    );
+    this.name = "AdjustmentWouldExceedQuantityError";
+  }
+}
+
 export interface CreateAdjustmentInput {
   shipmentId: string;
   quantityDelta: number;
@@ -43,8 +55,16 @@ export async function createAdjustment(prisma: PrismaClient, input: CreateAdjust
 
     const remainingMap = await getRemainingQty(tx, [input.shipmentId]);
     const currentRemaining = remainingMap.get(input.shipmentId) ?? 0;
-    if (currentRemaining + input.quantityDelta < 0) {
+    const newRemaining = currentRemaining + input.quantityDelta;
+    if (newRemaining < 0) {
       throw new AdjustmentWouldGoNegativeError(currentRemaining, input.quantityDelta);
+    }
+    if (newRemaining > locked.quantityOrdered) {
+      throw new AdjustmentWouldExceedQuantityError(
+        currentRemaining,
+        input.quantityDelta,
+        locked.quantityOrdered
+      );
     }
 
     return tx.inventoryAdjustment.create({

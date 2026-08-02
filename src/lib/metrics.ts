@@ -2,12 +2,13 @@ import type { PrismaClient } from "@/generated/prisma/client";
 
 /**
  * The date a batch fully sold out — i.e. the sale date of the
- * chronologically-last sale allocation drawn against it, once the
- * batch's derived remaining quantity reaches zero. Returns null if the
- * batch still has stock remaining. Note: if a batch's last unit(s) are
- * removed via an inventory adjustment (damage/loss) rather than sold,
- * this still reports the last sale that touched the batch, not the
- * adjustment — "sell-through" is specifically about sales.
+ * chronologically-last sale allocation drawn against it, once sale
+ * allocations alone (ignoring inventory adjustments) have consumed the
+ * batch's entire original quantityOrdered. Returns null if sales alone
+ * haven't consumed the batch yet. Deliberately ignores adjustments when
+ * deciding *whether* the batch sold through: a damage/loss adjustment
+ * that zeroes out remaining stock is not the same as the batch's units
+ * being sold, so it must not be reported as a sell-through date.
  */
 export async function computeSellThroughDate(
   prisma: PrismaClient,
@@ -18,23 +19,15 @@ export async function computeSellThroughDate(
     select: { quantityOrdered: true },
   });
 
-  const [adjustmentSum, allocationSum] = await Promise.all([
-    prisma.inventoryAdjustment.aggregate({
-      where: { shipmentId },
-      _sum: { quantityDelta: true },
-    }),
-    prisma.saleAllocation.aggregate({
-      where: { shipmentId },
-      _sum: { quantity: true },
-    }),
-  ]);
+  const allocationSum = await prisma.saleAllocation.aggregate({
+    where: { shipmentId },
+    _sum: { quantity: true },
+  });
 
-  const remaining =
-    shipment.quantityOrdered +
-    (adjustmentSum._sum.quantityDelta ?? 0) -
-    (allocationSum._sum.quantity ?? 0);
+  const remainingViaSalesOnly =
+    shipment.quantityOrdered - (allocationSum._sum.quantity ?? 0);
 
-  if (remaining > 0) return null;
+  if (remainingViaSalesOnly > 0) return null;
 
   const lastAllocation = await prisma.saleAllocation.findFirst({
     where: { shipmentId },

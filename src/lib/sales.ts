@@ -38,7 +38,9 @@ function toFifoCandidates(
 ): FifoCandidate[] {
   return locked.map((s) => ({
     shipmentId: s.id,
-    arrivalDate: s.arrivalDate,
+    // lockArrivedShipmentsForProduct only ever returns rows with
+    // arrivalDate IS NOT NULL — non-null here by construction.
+    arrivalDate: s.arrivalDate!,
     remainingQty: remaining.get(s.id) ?? 0,
   }));
 }
