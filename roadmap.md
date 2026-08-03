@@ -79,17 +79,17 @@ Step-by-step build plan for the inventory app, derived from `vision.md` (require
 
 ## Phase 1: Authentication
 
-**Phase Status:** Not Started
+**Phase Status:** Implementation complete — pending user sign-off (Phase Testing below)
 **Goal:** Both owners can log in securely; no page is usable without auth.
 
 ### Tasks
-- [ ] Implement Auth.js (NextAuth) credentials provider.
-- [ ] Create two pre-set accounts (email/password, hashed) — no public signup, no OAuth.
-- [ ] Build login page per `design.md` (centered form, PC and mobile).
-- [ ] Add route/middleware protection so all app pages require login.
-- [ ] Add logout action.
-- [ ] Build an in-app account/settings screen where each logged-in owner can change their own password.
-- [ ] Document the one-time account seed/bootstrap script used to create the two initial accounts at setup.
+- [x] Implement Auth.js (NextAuth) credentials provider.
+- [x] Create two pre-set accounts (email/password, hashed) — no public signup, no OAuth.
+- [x] Build login page per `design.md` (centered form, PC and mobile).
+- [x] Add route/middleware protection so all app pages require login.
+- [x] Add logout action.
+- [x] Build an in-app account/settings screen where each logged-in owner can change their own password.
+- [x] Document the one-time account seed/bootstrap script used to create the two initial accounts at setup.
 
 ### Phase Testing (with user)
 - [ ] Each owner logs in with their own account on PC.

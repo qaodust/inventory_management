@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { moreNavItems } from "@/lib/nav";
+import { signOutAction } from "@/lib/actions/sign-out";
 
 export default function MorePage() {
   return (
@@ -17,6 +18,22 @@ export default function MorePage() {
           </li>
         ))}
       </ul>
+      <div className="mt-4 flex flex-col divide-y divide-neutral-200 overflow-hidden rounded-lg border border-neutral-200 dark:divide-neutral-800 dark:border-neutral-800">
+        <Link
+          href="/account"
+          className="flex min-h-11 items-center px-4 py-3 text-sm font-medium hover:bg-neutral-50 dark:hover:bg-neutral-900"
+        >
+          Account
+        </Link>
+        <form action={signOutAction}>
+          <button
+            type="submit"
+            className="flex min-h-11 w-full items-center px-4 py-3 text-left text-sm font-medium hover:bg-neutral-50 dark:hover:bg-neutral-900"
+          >
+            Sign out
+          </button>
+        </form>
+      </div>
     </div>
   );
 }

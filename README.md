@@ -60,6 +60,33 @@ npx prisma db push      # push schema changes to the database (no migration hist
 Schema lives in `prisma/schema.prisma`; connection config is in
 `prisma.config.ts`.
 
+### Authentication setup
+
+Login uses [Auth.js](https://authjs.dev) (email + password, JWT sessions,
+no OAuth) against the two pre-created owner accounts — see
+`planning-decisions.md` and `design.md`. There is no signup flow; accounts
+are bootstrapped once via a seed script.
+
+```bash
+# .env needs AUTH_SECRET (generate with `npx auth secret` or
+# `openssl rand -base64 33`) and, only for the one-time seed run below,
+# OWNER1_EMAIL/OWNER1_PASSWORD/OWNER2_EMAIL/OWNER2_PASSWORD — see
+# .env.example for the full list.
+
+npx prisma db seed
+```
+
+The seed script only creates an account if one doesn't already exist for
+that email — safe to re-run (e.g. after `prisma migrate reset`) without
+overwriting a password an owner has already changed. Each owner should
+change their seeded temporary password immediately via the in-app
+Account screen; the `OWNER1_PASSWORD`/`OWNER2_PASSWORD` env vars are only
+ever used for that first bootstrap.
+
+On Railway, set `AUTH_SECRET` in the environment's variables (Railway
+isn't Vercel, so `trustHost: true` is set explicitly in `src/auth.ts`
+rather than relying on host auto-detection).
+
 ### Other scripts
 
 ```bash

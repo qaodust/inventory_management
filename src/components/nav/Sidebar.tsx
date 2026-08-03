@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { mainNavItems } from "@/lib/nav";
+import { signOutAction } from "@/lib/actions/sign-out";
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -29,6 +30,26 @@ export function Sidebar() {
           );
         })}
       </ul>
+      <div className="mt-auto flex flex-col gap-1 border-t border-neutral-200 pt-4 dark:border-neutral-800">
+        <Link
+          href="/account"
+          className={`block rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+            pathname === "/account"
+              ? "bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900"
+              : "text-neutral-700 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
+          }`}
+        >
+          Account
+        </Link>
+        <form action={signOutAction}>
+          <button
+            type="submit"
+            className="w-full rounded-md px-3 py-2 text-left text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
+          >
+            Sign out
+          </button>
+        </form>
+      </div>
     </nav>
   );
 }
