@@ -164,6 +164,36 @@ export async function editShipment(
   });
 }
 
+export interface PendingDelivery {
+  id: string;
+  productName: string;
+  manufacturerName: string;
+  quantityOrdered: number;
+  orderDate: Date;
+  expectedArrivalDate: Date | null;
+}
+
+/**
+ * Shipments ordered but not yet arrived (arrivalDate IS NULL), oldest
+ * order first. Feeds the Shipments page's Pending tab and, per roadmap
+ * Phase 6, the Dashboard's Pending Deliveries section.
+ */
+export async function getPendingDeliveries(prisma: PrismaClient): Promise<PendingDelivery[]> {
+  const shipments = await prisma.shipment.findMany({
+    where: { arrivalDate: null },
+    orderBy: { orderDate: "asc" },
+    include: { product: { select: { name: true } }, manufacturer: { select: { name: true } } },
+  });
+  return shipments.map((s) => ({
+    id: s.id,
+    productName: s.product.name,
+    manufacturerName: s.manufacturer.name,
+    quantityOrdered: s.quantityOrdered,
+    orderDate: s.orderDate,
+    expectedArrivalDate: s.expectedArrivalDate,
+  }));
+}
+
 /**
  * Deletes a batch. The database itself enforces that a batch with
  * existing sale allocations or inventory adjustments can't be

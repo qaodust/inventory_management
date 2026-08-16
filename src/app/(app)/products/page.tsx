@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { decimalToCents, formatCents } from "@/lib/money";
+import { getQuantitiesAvailable } from "@/lib/metrics";
 import { ProductFilters } from "./ProductFilters";
 
 function formatGoalPrice(goalPrice: Prisma.Decimal | null): string {
@@ -28,6 +29,11 @@ export default async function ProductsPage({
     }),
     prisma.category.findMany({ orderBy: { name: "asc" } }),
   ]);
+
+  const quantities = await getQuantitiesAvailable(
+    prisma,
+    products.map((p) => p.id)
+  );
 
   return (
     <div className="flex flex-col gap-4 pb-16 md:pb-0">
@@ -80,7 +86,7 @@ export default async function ProductsPage({
                     </td>
                     <td className="px-4 py-3">{p.category?.name ?? "—"}</td>
                     <td className="px-4 py-3">{formatGoalPrice(p.goalPrice)}</td>
-                    <td className="px-4 py-3">0</td>
+                    <td className="px-4 py-3">{quantities.get(p.id) ?? 0}</td>
                   </tr>
                 ))}
               </tbody>
@@ -104,8 +110,8 @@ export default async function ProductsPage({
                   )}
                 </span>
                 <span className="text-sm text-neutral-500 dark:text-neutral-400">
-                  {p.category?.name ?? "No category"} · {formatGoalPrice(p.goalPrice)} goal · 0
-                  available
+                  {p.category?.name ?? "No category"} · {formatGoalPrice(p.goalPrice)} goal ·{" "}
+                  {quantities.get(p.id) ?? 0} available
                 </span>
               </Link>
             ))}

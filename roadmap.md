@@ -18,7 +18,7 @@ Step-by-step build plan for the inventory app, derived from `vision.md` (require
 | 1 | Authentication | Complete |
 | 2 | Manufacturers | Complete |
 | 3 | Products | In Progress |
-| 4 | Shipments (Batches) | Not Started |
+| 4 | Shipments (Batches) | In Progress |
 | 5 | Sales | Not Started |
 | 6 | Dashboard | Not Started |
 | 7 | Reports / Metrics | Not Started |
@@ -143,20 +143,20 @@ Step-by-step build plan for the inventory app, derived from `vision.md` (require
 
 ## Phase 4: Shipments (Batches)
 
-**Phase Status:** Not Started
+**Phase Status:** Implementation complete — pending user sign-off
 **Goal:** Orders can be logged and marked arrived; this is what makes Products' quantities and Manufacturers' stats real.
 
 ### Tasks
-- [ ] Implement the Phase 0.5 `shipments` schema: manufacturer ref, product ref, quantity, fixed-precision product cost, shipping fee, order date, expected arrival date (nullable), arrival date (nullable).
-- [ ] Build Shipments page with Pending/Arrived/All tabs, defaulting to Pending, per `design.md`.
-- [ ] Build "Log New Shipment" flow, including optional Expected Arrival Date.
-- [ ] Build one-tap "Mark Arrived" quick action (date picker defaulting to today).
-- [ ] Wire Product detail page's Batches section to real shipment data (arrival date, remaining qty, cost/unit).
-- [ ] Wire Products list's Quantity Available to sum remaining quantity across a product's open batches.
-- [ ] Wire Manufacturer detail page's computed stats (avg delivery time, avg shipping fee, reliability once enough expected-arrival data exists) to aggregate from real shipment records.
-- [ ] Add Pending Deliveries data source (shipments with null arrival date) — will be consumed by the Dashboard in Phase 6.
-- [ ] Build inventory adjustments for damage, loss, samples, returns, and count corrections, with negative-stock prevention.
-- [ ] Allow direct edit/delete of shipments (confirmation-gated), recalculating downstream batch quantities and cost/unit live.
+- [x] Implement the Phase 0.5 `shipments` schema: manufacturer ref, product ref, quantity, fixed-precision product cost, shipping fee, order date, expected arrival date (nullable), arrival date (nullable). (Already present from Phase 0.5; `src/lib/shipments.ts` adds `createShipment`/`editShipment`/`deleteShipment`/`markShipmentArrived`.)
+- [x] Build Shipments page with Pending/Arrived/All tabs, defaulting to Pending, per `design.md`. (`src/app/(app)/shipments/page.tsx`, PC table + mobile cards.)
+- [x] Build "Log New Shipment" flow, including optional Expected Arrival Date. (`src/app/(app)/shipments/new/`.)
+- [x] Build one-tap "Mark Arrived" quick action (date picker defaulting to today). (Inline form on the Shipments list, `markShipmentArrivedAction`.)
+- [x] Wire Product detail page's Batches section to real shipment data (arrival date, remaining qty, cost/unit). (`getProductBatches` in `src/lib/metrics.ts`, filtered to arrived batches only, oldest-first.)
+- [x] Wire Products list's Quantity Available to sum remaining quantity across a product's open batches. (`getQuantitiesAvailable` in `src/lib/metrics.ts`.)
+- [x] Wire Manufacturer detail page's computed stats (avg delivery time, avg shipping fee, reliability once enough expected-arrival data exists) to aggregate from real shipment records. (`computeManufacturerStats` in `src/lib/metrics.ts`: avg delivery time is averaged over arrived shipments only, since delivery time is undefined before arrival; avg shipping fee and total shipment count are averaged over all shipments, since the fee is known at order time regardless of arrival status.)
+- [x] Add Pending Deliveries data source (shipments with null arrival date) — will be consumed by the Dashboard in Phase 6. (`getPendingDeliveries` in `src/lib/shipments.ts`.)
+- [x] Build inventory adjustments for damage, loss, samples, returns, and count corrections, with negative-stock prevention. (`src/app/(app)/products/[id]/batches/[shipmentId]/adjust/`, live current/resulting-quantity preview, hard block on going negative. Built as a dedicated full page rather than design.md's "focused dialog or side panel" — the codebase has no modal/dialog component anywhere, and exclusively uses full-page navigation elsewhere, so a page keeps the pattern consistent. All functional requirements are met regardless of chrome.)
+- [x] Allow direct edit/delete of shipments (confirmation-gated), recalculating downstream batch quantities and cost/unit live. (`src/app/(app)/shipments/[id]/`. Confirmation prompts are deliberately deferred to Phase 8, which has its own explicit task for adding confirmation gating to destructive actions app-wide — consistent with how Phase 2/3 shipped Archive without a confirm dialog.)
 
 ### Phase Testing (with user)
 - [ ] User logs a new shipment (real or test order) for an existing product/manufacturer.

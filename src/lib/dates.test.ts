@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { nyDateStringToUtcDate, nyTodayDateString, toNyDateString } from "./dates";
+import {
+  nyDateStringToUtcDate,
+  nyTodayDateString,
+  toNyDateString,
+  utcDateToDateString,
+} from "./dates";
 
 afterEach(() => {
   vi.useRealTimers();
@@ -60,5 +65,12 @@ describe("nyDateStringToUtcDate", () => {
     expect(date.getUTCFullYear()).toBe(2026);
     expect(date.getUTCMonth()).toBe(6);
     expect(date.getUTCDate()).toBe(4);
+  });
+});
+
+describe("utcDateToDateString", () => {
+  it("round-trips exactly with nyDateStringToUtcDate", () => {
+    expect(utcDateToDateString(nyDateStringToUtcDate("2026-01-15"))).toBe("2026-01-15");
+    expect(utcDateToDateString(nyDateStringToUtcDate("2026-12-31"))).toBe("2026-12-31");
   });
 });

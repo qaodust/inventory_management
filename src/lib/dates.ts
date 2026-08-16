@@ -31,3 +31,17 @@ export function nyDateStringToUtcDate(dateString: string): Date {
   }
   return new Date(`${dateString}T00:00:00.000Z`);
 }
+
+/**
+ * Inverse of nyDateStringToUtcDate — reads a `@db.Date` column's
+ * UTC-midnight Date back out as "YYYY-MM-DD". Do NOT use toNyDateString
+ * for this: these values are already UTC-midnight encodings of the
+ * intended calendar date, not real instants to reinterpret in NY time
+ * (doing so would shift the displayed date back by a day).
+ */
+export function utcDateToDateString(date: Date): string {
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(date.getUTCDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}

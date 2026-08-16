@@ -1,4 +1,30 @@
-import type { PrismaClient } from "@/generated/prisma/client";
+import { Prisma, type PrismaClient } from "@/generated/prisma/client";
+import { decimalToCents } from "./money";
+
+/**
+ * Remaining quantity per shipment = quantityOrdered + SUM(adjustment
+ * deltas) - SUM(allocation quantities). Read-only variant of
+ * locking.ts's getRemainingQty (no FOR UPDATE) — safe outside a
+ * transaction, for display-only aggregates like this module's.
+ */
+export async function readRemainingQty(
+  prisma: PrismaClient,
+  shipmentIds: string[]
+): Promise<Map<string, number>> {
+  if (shipmentIds.length === 0) return new Map();
+  const rows = await prisma.$queryRaw<{ id: string; remaining: number }[]>`
+    SELECT
+      s.id AS id,
+      (
+        s."quantityOrdered"
+        + COALESCE((SELECT SUM(a."quantityDelta") FROM "InventoryAdjustment" a WHERE a."shipmentId" = s.id), 0)
+        - COALESCE((SELECT SUM(sa.quantity) FROM "SaleAllocation" sa WHERE sa."shipmentId" = s.id), 0)
+      )::int AS remaining
+    FROM "Shipment" s
+    WHERE s.id IN (${Prisma.join(shipmentIds)})
+  `;
+  return new Map(rows.map((r) => [r.id, r.remaining]));
+}
 
 /**
  * The date a batch fully sold out — i.e. the sale date of the
@@ -36,4 +62,113 @@ export async function computeSellThroughDate(
   });
 
   return lastAllocation?.sale.saleDate ?? null;
+}
+
+/**
+ * Sum of remaining quantity across each product's arrived batches
+ * (shipments with an arrivalDate) — a pending, not-yet-arrived order
+ * isn't in-hand stock yet, so it's excluded. Keyed by productId.
+ */
+export async function getQuantitiesAvailable(
+  prisma: PrismaClient,
+  productIds: string[]
+): Promise<Map<string, number>> {
+  if (productIds.length === 0) return new Map();
+  const rows = await prisma.$queryRaw<{ productId: string; remaining: number }[]>`
+    SELECT
+      s."productId" AS "productId",
+      SUM(
+        s."quantityOrdered"
+        + COALESCE((SELECT SUM(a."quantityDelta") FROM "InventoryAdjustment" a WHERE a."shipmentId" = s.id), 0)
+        - COALESCE((SELECT SUM(sa.quantity) FROM "SaleAllocation" sa WHERE sa."shipmentId" = s.id), 0)
+      )::int AS remaining
+    FROM "Shipment" s
+    WHERE s."productId" IN (${Prisma.join(productIds)}) AND s."arrivalDate" IS NOT NULL
+    GROUP BY s."productId"
+  `;
+  return new Map(rows.map((r) => [r.productId, Number(r.remaining)]));
+}
+
+export interface ProductBatch {
+  id: string;
+  arrivalDate: Date;
+  manufacturerName: string;
+  quantityOrdered: number;
+  remainingQty: number;
+  costPerUnitCents: number;
+  sellThroughDate: Date | null;
+}
+
+/** A product's arrived batches (shipments), oldest-arrived-first — matches the FIFO consumption order. */
+export async function getProductBatches(
+  prisma: PrismaClient,
+  productId: string
+): Promise<ProductBatch[]> {
+  const shipments = await prisma.shipment.findMany({
+    where: { productId, arrivalDate: { not: null } },
+    orderBy: [{ arrivalDate: "asc" }, { id: "asc" }],
+    include: { manufacturer: { select: { name: true } } },
+  });
+  if (shipments.length === 0) return [];
+
+  const remainingMap = await readRemainingQty(
+    prisma,
+    shipments.map((s) => s.id)
+  );
+
+  return Promise.all(
+    shipments.map(async (s) => {
+      const totalCents = decimalToCents(s.productCost) + decimalToCents(s.shippingFee);
+      return {
+        id: s.id,
+        arrivalDate: s.arrivalDate!,
+        manufacturerName: s.manufacturer.name,
+        quantityOrdered: s.quantityOrdered,
+        remainingQty: remainingMap.get(s.id) ?? 0,
+        costPerUnitCents: Math.round(totalCents / s.quantityOrdered),
+        sellThroughDate: await computeSellThroughDate(prisma, s.id),
+      };
+    })
+  );
+}
+
+export interface ManufacturerStats {
+  totalShipments: number;
+  /** Average calendar days from orderDate to arrivalDate, over arrived shipments only. Null if none have arrived yet. */
+  avgDeliveryDays: number | null;
+  /** Average shipping fee in cents, over all shipments (fee is known at order time regardless of arrival). Null if there are no shipments at all. */
+  avgShippingFeeCents: number | null;
+}
+
+const MS_PER_DAY = 1000 * 60 * 60 * 24;
+
+/** Manufacturer-level stats aggregated from its Shipment records — never stored directly on the manufacturer. */
+export async function computeManufacturerStats(
+  prisma: PrismaClient,
+  manufacturerId: string
+): Promise<ManufacturerStats> {
+  const shipments = await prisma.shipment.findMany({
+    where: { manufacturerId },
+    select: { orderDate: true, arrivalDate: true, shippingFee: true },
+  });
+
+  const totalShipments = shipments.length;
+  if (totalShipments === 0) {
+    return { totalShipments: 0, avgDeliveryDays: null, avgShippingFeeCents: null };
+  }
+
+  const arrived = shipments.filter((s) => s.arrivalDate !== null);
+  const avgDeliveryDays =
+    arrived.length === 0
+      ? null
+      : arrived.reduce(
+          (sum, s) => sum + (s.arrivalDate!.getTime() - s.orderDate.getTime()) / MS_PER_DAY,
+          0
+        ) / arrived.length;
+
+  const avgShippingFeeCents = Math.round(
+    shipments.reduce((sum, s) => sum + decimalToCents(s.shippingFee), 0) / totalShipments
+  );
+
+  return { totalShipments, avgDeliveryDays, avgShippingFeeCents };
 }

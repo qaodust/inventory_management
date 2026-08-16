@@ -1,6 +1,19 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { formatCents } from "@/lib/money";
+import { utcDateToDateString } from "@/lib/dates";
+import { computeManufacturerStats } from "@/lib/metrics";
+import { computeReliability } from "@/lib/manufacturers";
 import { EditManufacturerForm } from "./EditManufacturerForm";
+
+function formatDeliveryDays(avgDeliveryDays: number | null): string {
+  return avgDeliveryDays === null ? "No arrivals yet" : `${avgDeliveryDays.toFixed(1)} days`;
+}
+
+function formatShippingFee(avgShippingFeeCents: number | null): string {
+  return avgShippingFeeCents === null ? "No shipments yet" : formatCents(avgShippingFeeCents);
+}
 
 export default async function ManufacturerDetailPage({
   params,
@@ -8,7 +21,16 @@ export default async function ManufacturerDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const manufacturer = await prisma.manufacturer.findUnique({ where: { id } });
+  const [manufacturer, stats, reliability, shipments] = await Promise.all([
+    prisma.manufacturer.findUnique({ where: { id } }),
+    computeManufacturerStats(prisma, id),
+    computeReliability(prisma, id),
+    prisma.shipment.findMany({
+      where: { manufacturerId: id },
+      include: { product: { select: { name: true } } },
+      orderBy: [{ orderDate: "desc" }, { id: "desc" }],
+    }),
+  ]);
   if (!manufacturer) notFound();
 
   return (
@@ -31,30 +53,52 @@ export default async function ManufacturerDetailPage({
             <p className="text-sm text-neutral-500 dark:text-neutral-400">
               Avg Delivery Time
             </p>
-            <p className="mt-1 text-sm">No shipments yet</p>
+            <p className="mt-1 text-sm">{formatDeliveryDays(stats.avgDeliveryDays)}</p>
           </div>
           <div className="rounded-lg border border-neutral-200 p-4 dark:border-neutral-800">
             <p className="text-sm text-neutral-500 dark:text-neutral-400">
               Avg Shipping Fee
             </p>
-            <p className="mt-1 text-sm">No shipments yet</p>
+            <p className="mt-1 text-sm">{formatShippingFee(stats.avgShippingFeeCents)}</p>
           </div>
           <div className="rounded-lg border border-neutral-200 p-4 dark:border-neutral-800">
             <p className="text-sm text-neutral-500 dark:text-neutral-400">Total Shipments</p>
-            <p className="mt-1 text-sm">0</p>
+            <p className="mt-1 text-sm">{stats.totalShipments}</p>
           </div>
           <div className="rounded-lg border border-neutral-200 p-4 dark:border-neutral-800">
             <p className="text-sm text-neutral-500 dark:text-neutral-400">Reliability</p>
-            <p className="mt-1 text-sm">Not enough data yet</p>
+            <p className="mt-1 text-sm">
+              {reliability.status === "ok"
+                ? `${reliability.onTimePct.toFixed(0)}% on time`
+                : "Not enough data yet"}
+            </p>
           </div>
         </div>
 
         <div className="rounded-lg border border-neutral-200 p-4 dark:border-neutral-800">
           <h2 className="mb-2 text-sm font-medium">Shipments</h2>
-          <p className="text-sm text-neutral-500 dark:text-neutral-400">
-            No shipments logged yet — this section populates once Shipments
-            (Phase 4) is built.
-          </p>
+          {shipments.length === 0 ? (
+            <p className="text-sm text-neutral-500 dark:text-neutral-400">
+              No shipments logged yet.
+            </p>
+          ) : (
+            <ul className="divide-y divide-neutral-200 dark:divide-neutral-800">
+              {shipments.map((s) => (
+                <li key={s.id} className="py-2 text-sm">
+                  <Link href={`/shipments/${s.id}`} className="flex justify-between hover:underline">
+                    <span>
+                      {s.product.name} · Qty {s.quantityOrdered}
+                    </span>
+                    <span className="text-neutral-500 dark:text-neutral-400">
+                      {s.arrivalDate
+                        ? `Arrived ${utcDateToDateString(s.arrivalDate)}`
+                        : `Ordered ${utcDateToDateString(s.orderDate)}`}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </div>
     </div>
