@@ -15,8 +15,8 @@ Step-by-step build plan for the inventory app, derived from `vision.md` (require
 |---|---|---|
 | 0 | Foundation & Deployment Skeleton | Complete |
 | 0.5 | Data Model & Business Rules | In Progress |
-| 1 | Authentication | Not Started |
-| 2 | Manufacturers | Not Started |
+| 1 | Authentication | Complete |
+| 2 | Manufacturers | In Progress |
 | 3 | Products | Not Started |
 | 4 | Shipments (Batches) | Not Started |
 | 5 | Sales | Not Started |
@@ -79,7 +79,7 @@ Step-by-step build plan for the inventory app, derived from `vision.md` (require
 
 ## Phase 1: Authentication
 
-**Phase Status:** Implementation complete — pending user sign-off (Phase Testing below)
+**Phase Status:** Complete
 **Goal:** Both owners can log in securely; no page is usable without auth.
 
 ### Tasks
@@ -92,25 +92,25 @@ Step-by-step build plan for the inventory app, derived from `vision.md` (require
 - [x] Document the one-time account seed/bootstrap script used to create the two initial accounts at setup.
 
 ### Phase Testing (with user)
-- [ ] Each owner logs in with their own account on PC.
-- [ ] Each owner logs in with their own account on mobile.
-- [ ] Confirm an incorrect password is rejected with a clear error.
-- [ ] Confirm visiting any app page while logged out redirects to login.
-- [ ] Confirm logout works and re-protects the app.
+- [x] Each owner logs in with their own account on PC.
+- [x] Each owner logs in with their own account on mobile.
+- [x] Confirm an incorrect password is rejected with a clear error.
+- [x] Confirm visiting any app page while logged out redirects to login.
+- [x] Confirm logout works and re-protects the app.
 
 ---
 
 ## Phase 2: Manufacturers
 
-**Phase Status:** Not Started
+**Phase Status:** Implementation complete — pending user sign-off (Phase Testing below)
 **Goal:** First real data vertical — proves the CRUD + ratings pattern that Products will reuse.
 
 ### Tasks
-- [ ] Implement the Phase 0.5 `manufacturers` schema: name, quality rating (1–5) + note, ease-of-use rating (1–5) + note.
-- [ ] Build Manufacturers list page (PC table / mobile cards per `design.md`).
-- [ ] Build "Add Manufacturer" flow.
-- [ ] Build Manufacturer detail page: editable name + ratings/notes.
-- [ ] Stub computed-stats section on detail page (avg delivery time, avg shipping fee) — will populate once Shipments (Phase 4) exists; show "no shipments yet" placeholder for now.
+- [x] Implement the Phase 0.5 `manufacturers` schema: name, quality rating (1–5) + note, ease-of-use rating (1–5) + note. (`createManufacturer`/`editManufacturer` in `src/lib/manufacturers.ts`, with rating-bounds and duplicate-name validation and integration tests.)
+- [x] Build Manufacturers list page (PC table / mobile cards per `design.md`).
+- [x] Build "Add Manufacturer" flow.
+- [x] Build Manufacturer detail page: editable name + ratings/notes.
+- [x] Stub computed-stats section on detail page (avg delivery time, avg shipping fee, total shipments, reliability) — will populate once Shipments (Phase 4) exists; shows "no shipments yet"/"not enough data yet" placeholder for now.
 
 ### Phase Testing (with user)
 - [ ] User adds a real manufacturer with quality + ease-of-use ratings and notes.
