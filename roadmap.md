@@ -18,8 +18,8 @@ Step-by-step build plan for the inventory app, derived from `vision.md` (require
 | 1 | Authentication | Complete |
 | 2 | Manufacturers | Complete |
 | 3 | Products | In Progress |
-| 4 | Shipments (Batches) | In Progress |
-| 5 | Sales | Not Started |
+| 4 | Shipments (Batches) | Complete |
+| 5 | Sales | In Progress |
 | 6 | Dashboard | Not Started |
 | 7 | Reports / Metrics | Not Started |
 | 8 | Polish & Hardening | Not Started |
@@ -143,7 +143,7 @@ Step-by-step build plan for the inventory app, derived from `vision.md` (require
 
 ## Phase 4: Shipments (Batches)
 
-**Phase Status:** Implementation complete — pending user sign-off
+**Phase Status:** Complete
 **Goal:** Orders can be logged and marked arrived; this is what makes Products' quantities and Manufacturers' stats real.
 
 ### Tasks
@@ -159,30 +159,30 @@ Step-by-step build plan for the inventory app, derived from `vision.md` (require
 - [x] Allow direct edit/delete of shipments (confirmation-gated), recalculating downstream batch quantities and cost/unit live. (`src/app/(app)/shipments/[id]/`. Confirmation prompts are deliberately deferred to Phase 8, which has its own explicit task for adding confirmation gating to destructive actions app-wide — consistent with how Phase 2/3 shipped Archive without a confirm dialog.)
 
 ### Phase Testing (with user)
-- [ ] User logs a new shipment (real or test order) for an existing product/manufacturer.
-- [ ] User marks a pending shipment as arrived and confirms it moves to the Arrived tab.
-- [ ] Confirm the related product's Quantity Available and Batches section update correctly.
-- [ ] Confirm the related manufacturer's avg delivery time / shipping fee stats update correctly.
-- [ ] Confirm Pending vs Arrived vs All tabs filter correctly on PC and mobile.
+- [x] User logs a new shipment (real or test order) for an existing product/manufacturer.
+- [x] User marks a pending shipment as arrived and confirms it moves to the Arrived tab.
+- [x] Confirm the related product's Quantity Available and Batches section update correctly.
+- [x] Confirm the related manufacturer's avg delivery time / shipping fee stats update correctly.
+- [x] Confirm Pending vs Arrived vs All tabs filter correctly on PC and mobile.
 
 ---
 
 ## Phase 5: Sales
 
-**Phase Status:** Not Started
+**Phase Status:** Implementation complete — pending user sign-off
 **Goal:** Individual sales can be logged against FIFO batches with accurate profit calculation — the core value of the app.
 
 ### Tasks
-- [ ] Implement the Phase 0.5 `sales` and `sale_allocations` schema, including quantity and cost basis per batch allocation.
-- [ ] Design/implement `routes` as an extensible list (seeded with common routes; supports adding new ones inline).
-- [ ] Implement FIFO batch-consumption logic: deduct from oldest arrived batch with remaining qty; span into next-oldest batch(es) if a sale exceeds one batch's remaining quantity, splitting cost basis accordingly.
-- [ ] Run validation, allocation, stock consumption, and persistence in one transaction with row-level concurrency protection.
-- [ ] Enforce sale date = today only (no backdating) and apply the stable FIFO tie-breaker.
-- [ ] Allow direct edit/delete of sales (confirmation-gated), recomputing FIFO allocations live.
-- [ ] Build Log Sale form (product, quantity, price/unit, route incl. "add new route") opening directly from the Sales nav item, per `design.md`. Sale date is auto-set to today, not entered.
-- [ ] Implement live profit preview (price × qty − FIFO cost basis) shown before submit.
-- [ ] Build Sales History tab/list with filters (date range, product, route).
-- [ ] Implement sell-through time capture: when a batch's last unit sells, record/derive the sell-through duration (arrival date → that sale's date) for use in Phase 7 reporting and the Product detail Batches section.
+- [x] Implement the Phase 0.5 `sales` and `sale_allocations` schema, including quantity and cost basis per batch allocation. (Already present from Phase 0.5.)
+- [x] Design/implement `routes` as an extensible list (seeded with common routes; supports adding new ones inline). (`SaleRouteField` sentinel-value inline "add new route" pattern mirroring `CategoryField`, case-insensitive find-or-create in `resolveSaleRoute` — `src/lib/sales.ts`, `src/lib/actions/sale-route-field.ts`, `src/components/SaleRouteField.tsx`.)
+- [x] Implement FIFO batch-consumption logic: deduct from oldest arrived batch with remaining qty; span into next-oldest batch(es) if a sale exceeds one batch's remaining quantity, splitting cost basis accordingly. (Already implemented in Phase 0.5 via `selectFifoBatches`/`allocationCostCents`; surfaced through the UI this phase.)
+- [x] Run validation, allocation, stock consumption, and persistence in one transaction with row-level concurrency protection. (Already implemented in Phase 0.5 via `lockArrivedShipmentsForProduct` + `prisma.$transaction`.)
+- [x] Enforce sale date = today only (no backdating) and apply the stable FIFO tie-breaker. (`createSale` sets `saleDate` server-side from `nyTodayDateString()`; no client-supplied date field exists.)
+- [x] Allow direct edit/delete of sales (confirmation-gated), recomputing FIFO allocations live. (`src/app/(app)/sales/[id]/`, reusing `repackShipmentAllocations` from Phase 4. Confirmation prompts remain deferred to Phase 8 per the Phase 4 precedent.)
+- [x] Build Log Sale form (product, quantity, price/unit, route incl. "add new route") opening directly from the Sales nav item, per `design.md`. Sale date is auto-set to today, not entered. (`src/app/(app)/sales/page.tsx` + `LogSaleForm.tsx`. Product uses a plain `<select>` rather than design.md's "searchable select," matching the plain-select convention used for Manufacturer/Product on the Shipments form — a deliberate minor deviation for UI consistency.)
+- [x] Implement live profit preview (price × qty − FIFO cost basis) shown before submit. (`LogSaleForm.tsx`'s `previewFifoCost`, computed client-side from server-preloaded batch data; notes which batch(es) it's drawing from, and blocks submit on insufficient stock.)
+- [x] Build Sales History tab/list with filters (date range, product, route). (`src/app/(app)/sales/history/`, `SalesHistoryFilters` mirroring `ProductFilters`' query-param pattern.)
+- [x] Implement sell-through time capture: when a batch's last unit sells, record/derive the sell-through duration (arrival date → that sale's date) for use in Phase 7 reporting and the Product detail Batches section. (Already implemented in Phase 0.5 via `computeSellThroughDate`.)
 
 ### Phase Testing (with user)
 - [ ] User logs a normal sale against a single batch and confirms the profit preview matches manual expectations.

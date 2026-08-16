@@ -1,4 +1,4 @@
-import type { PrismaClient } from "@/generated/prisma/client";
+import type { Prisma, PrismaClient } from "@/generated/prisma/client";
 import { nyDateStringToUtcDate, nyTodayDateString } from "./dates";
 import { selectFifoBatches, type FifoCandidate } from "./fifo";
 import { allocationCostCents, decimalToCents } from "./money";
@@ -17,19 +17,49 @@ export class InsufficientStockError extends Error {
   }
 }
 
+/**
+ * Resolves the sale route a sale form submitted: reuses an existing
+ * route by case-insensitive name match, or creates one, when
+ * `newSaleRouteName` is set (the form's inline "add new route" option)
+ * — otherwise passes `saleRouteId` straight through. Routes are an
+ * extensible user-managed list, so adding one inline should never
+ * require a deployment or hit a duplicate error.
+ */
+async function resolveSaleRoute(
+  tx: Prisma.TransactionClient,
+  saleRouteId: string | null | undefined,
+  newSaleRouteName: string | null | undefined
+): Promise<string> {
+  const trimmedNew = newSaleRouteName?.trim();
+  if (trimmedNew) {
+    const existing = await tx.saleRoute.findFirst({
+      where: { name: { equals: trimmedNew, mode: "insensitive" } },
+    });
+    if (existing) return existing.id;
+    const created = await tx.saleRoute.create({ data: { name: trimmedNew } });
+    return created.id;
+  }
+  if (!saleRouteId) throw new Error("Sale route is required.");
+  return saleRouteId;
+}
+
 export interface CreateSaleInput {
   productId: string;
   quantity: number;
   /** Dollars — a Decimal-compatible string or number, e.g. "12.50". */
   pricePerUnit: string | number;
-  saleRouteId: string;
+  saleRouteId?: string | null;
+  /** Inline "add new route" option — takes precedence over saleRouteId when set. */
+  newSaleRouteName?: string | null;
   loggedByUserId: string;
 }
 
 export interface EditSaleInput {
   quantity: number;
   pricePerUnit: string | number;
-  saleRouteId: string;
+  saleRouteId?: string | null;
+  /** Inline "add new route" option — takes precedence over saleRouteId when set. */
+  newSaleRouteName?: string | null;
 }
 
 function toFifoCandidates(
@@ -55,6 +85,7 @@ function toFifoCandidates(
  */
 export async function createSale(prisma: PrismaClient, input: CreateSaleInput) {
   return prisma.$transaction(async (tx) => {
+    const saleRouteId = await resolveSaleRoute(tx, input.saleRouteId, input.newSaleRouteName);
     const locked = await lockArrivedShipmentsForProduct(tx, input.productId);
     const remaining = await getRemainingQty(tx, locked.map((s) => s.id));
     const selection = selectFifoBatches(toFifoCandidates(locked, remaining), input.quantity);
@@ -67,7 +98,7 @@ export async function createSale(prisma: PrismaClient, input: CreateSaleInput) {
         productId: input.productId,
         quantity: input.quantity,
         pricePerUnit: input.pricePerUnit,
-        saleRouteId: input.saleRouteId,
+        saleRouteId,
         saleDate: nyDateStringToUtcDate(nyTodayDateString()),
         loggedByUserId: input.loggedByUserId,
       },
@@ -119,6 +150,7 @@ export async function createSale(prisma: PrismaClient, input: CreateSaleInput) {
  */
 export async function editSale(prisma: PrismaClient, saleId: string, input: EditSaleInput) {
   return prisma.$transaction(async (tx) => {
+    const saleRouteId = await resolveSaleRoute(tx, input.saleRouteId, input.newSaleRouteName);
     const sale = await tx.sale.findUniqueOrThrow({
       where: { id: saleId },
       include: { allocations: true },
@@ -157,7 +189,7 @@ export async function editSale(prisma: PrismaClient, saleId: string, input: Edit
       data: {
         quantity: input.quantity,
         pricePerUnit: input.pricePerUnit,
-        saleRouteId: input.saleRouteId,
+        saleRouteId,
       },
     });
 
@@ -195,4 +227,15 @@ export async function deleteSale(prisma: PrismaClient, saleId: string): Promise<
       await repackShipmentAllocations(tx, shipment);
     }
   });
+}
+
+/** Profit in cents: revenue (price/unit × qty) minus the summed FIFO cost basis of its allocations. */
+export function saleProfitCents(sale: {
+  pricePerUnit: Prisma.Decimal | string | number;
+  quantity: number;
+  allocations: { costBasisCents: number }[];
+}): number {
+  const revenueCents = decimalToCents(sale.pricePerUnit) * sale.quantity;
+  const costCents = sale.allocations.reduce((sum, a) => sum + a.costBasisCents, 0);
+  return revenueCents - costCents;
 }

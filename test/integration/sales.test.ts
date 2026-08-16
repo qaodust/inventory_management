@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { testPrisma } from "../db";
-import { createSale, deleteSale, editSale, InsufficientStockError } from "@/lib/sales";
+import {
+  createSale,
+  deleteSale,
+  editSale,
+  InsufficientStockError,
+} from "@/lib/sales";
 import { computeSellThroughDate } from "@/lib/metrics";
 import { createBaseFixtures, createShipment } from "./factories";
 
@@ -346,5 +351,91 @@ describe("deleteSale", () => {
       where: { saleId: saleA.id },
     });
     expect(deletedAllocations).toHaveLength(0); // cascaded
+  });
+});
+
+describe("inline sale route resolution", () => {
+  it("createSale creates a new route when newSaleRouteName is given", async () => {
+    const { user, manufacturer, product } = await createBaseFixtures();
+    await createShipment({
+      manufacturerId: manufacturer.id,
+      productId: product.id,
+      loggedByUserId: user.id,
+      quantityOrdered: 10,
+      productCost: "100.00",
+      shippingFee: "0.00",
+      orderDate: "2026-01-01",
+      arrivalDate: "2026-01-02",
+    });
+
+    const sale = await createSale(testPrisma, {
+      productId: product.id,
+      quantity: 2,
+      pricePerUnit: "25.00",
+      newSaleRouteName: "eBay",
+      loggedByUserId: user.id,
+    });
+
+    const route = await testPrisma.saleRoute.findUnique({ where: { id: sale.saleRouteId } });
+    expect(route?.name).toBe("eBay");
+  });
+
+  it("createSale reuses an existing route case-insensitively instead of duplicating it", async () => {
+    const { user, manufacturer, product } = await createBaseFixtures();
+    const existingRoute = await testPrisma.saleRoute.create({ data: { name: "Facebook Marketplace" } });
+    await createShipment({
+      manufacturerId: manufacturer.id,
+      productId: product.id,
+      loggedByUserId: user.id,
+      quantityOrdered: 10,
+      productCost: "100.00",
+      shippingFee: "0.00",
+      orderDate: "2026-01-01",
+      arrivalDate: "2026-01-02",
+    });
+
+    const sale = await createSale(testPrisma, {
+      productId: product.id,
+      quantity: 2,
+      pricePerUnit: "25.00",
+      newSaleRouteName: "facebook marketplace",
+      loggedByUserId: user.id,
+    });
+
+    expect(sale.saleRouteId).toBe(existingRoute.id);
+    const routeCount = await testPrisma.saleRoute.count({
+      where: { name: { equals: "facebook marketplace", mode: "insensitive" } },
+    });
+    expect(routeCount).toBe(1);
+  });
+
+  it("editSale can switch a sale onto a newly created route", async () => {
+    const { user, manufacturer, product, saleRoute } = await createBaseFixtures();
+    await createShipment({
+      manufacturerId: manufacturer.id,
+      productId: product.id,
+      loggedByUserId: user.id,
+      quantityOrdered: 10,
+      productCost: "100.00",
+      shippingFee: "0.00",
+      orderDate: "2026-01-01",
+      arrivalDate: "2026-01-02",
+    });
+    const sale = await createSale(testPrisma, {
+      productId: product.id,
+      quantity: 2,
+      pricePerUnit: "25.00",
+      saleRouteId: saleRoute.id,
+      loggedByUserId: user.id,
+    });
+
+    const updated = await editSale(testPrisma, sale.id, {
+      quantity: 2,
+      pricePerUnit: "25.00",
+      newSaleRouteName: "Craigslist",
+    });
+
+    const route = await testPrisma.saleRoute.findUnique({ where: { id: updated.saleRouteId } });
+    expect(route?.name).toBe("Craigslist");
   });
 });
