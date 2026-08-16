@@ -16,8 +16,8 @@ Step-by-step build plan for the inventory app, derived from `vision.md` (require
 | 0 | Foundation & Deployment Skeleton | Complete |
 | 0.5 | Data Model & Business Rules | In Progress |
 | 1 | Authentication | Complete |
-| 2 | Manufacturers | In Progress |
-| 3 | Products | Not Started |
+| 2 | Manufacturers | Complete |
+| 3 | Products | In Progress |
 | 4 | Shipments (Batches) | Not Started |
 | 5 | Sales | Not Started |
 | 6 | Dashboard | Not Started |
@@ -102,7 +102,7 @@ Step-by-step build plan for the inventory app, derived from `vision.md` (require
 
 ## Phase 2: Manufacturers
 
-**Phase Status:** Implementation complete — pending user sign-off (Phase Testing below)
+**Phase Status:** Complete
 **Goal:** First real data vertical — proves the CRUD + ratings pattern that Products will reuse.
 
 ### Tasks
@@ -113,25 +113,25 @@ Step-by-step build plan for the inventory app, derived from `vision.md` (require
 - [x] Stub computed-stats section on detail page (avg delivery time, avg shipping fee, total shipments, reliability) — will populate once Shipments (Phase 4) exists; shows "no shipments yet"/"not enough data yet" placeholder for now.
 
 ### Phase Testing (with user)
-- [ ] User adds a real manufacturer with quality + ease-of-use ratings and notes.
-- [ ] User edits an existing manufacturer's rating/notes.
-- [ ] Confirm list and detail views render correctly on PC and mobile.
-- [ ] Confirm ratings persist correctly after a page refresh.
+- [x] User adds a real manufacturer with quality + ease-of-use ratings and notes.
+- [x] User edits an existing manufacturer's rating/notes.
+- [x] Confirm list and detail views render correctly on PC and mobile.
+- [x] Confirm ratings persist correctly after a page refresh.
 
 ---
 
 ## Phase 3: Products
 
-**Phase Status:** Not Started
+**Phase Status:** Implementation complete — pending user sign-off
 **Goal:** Product catalog exists; quantity-available and batch details will light up fully once Shipments (Phase 4) lands.
 
 ### Tasks
-- [ ] Implement the Phase 0.5 `products` and `categories` schema: name, goal price, user-managed category reference, hidden/archived flag.
-- [ ] Build category management into product entry/filtering so new categories do not require code or schema changes.
-- [ ] Build Products list page (PC table / mobile cards), with category filter and archived-hidden-by-default toggle, per `design.md`.
-- [ ] Build "Add Product" flow.
-- [ ] Build Product detail page: editable fields + archive action, with a Batches section placeholder (populates in Phase 4).
-- [ ] Quantity Available field wired to derive from batches — safe to show `0`/empty until Phase 4 adds real batch data.
+- [x] Implement the Phase 0.5 `products` and `categories` schema: name, goal price, user-managed category reference, hidden/archived flag. (`createProduct`/`editProduct`/`setProductHidden` in `src/lib/products.ts`, with goal-price and blank-name validation and integration tests.)
+- [x] Build category management into product entry/filtering so new categories do not require code or schema changes. (`CategoryField` sentinel-value inline "add new category" pattern, case-insensitive find-or-create in `resolveCategory`.)
+- [x] Build Products list page (PC table / mobile cards), with category filter and archived-hidden-by-default toggle, per `design.md`. (`ProductFilters` client component drives `?category=`/`?archived=1` query params.)
+- [x] Build "Add Product" flow.
+- [x] Build Product detail page: editable fields + archive action, with a Batches section placeholder (populates in Phase 4).
+- [x] Quantity Available field wired to derive from batches — safe to show `0`/empty until Phase 4 adds real batch data. (Shown as static `0` on the list page for now.)
 
 ### Phase Testing (with user)
 - [ ] User adds a few real products across different categories.
