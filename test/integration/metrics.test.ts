@@ -5,6 +5,7 @@ import { AdjustmentReason } from "@/generated/prisma/client";
 import {
   computeSellThroughDate,
   computeManufacturerStats,
+  computeDashboardStats,
   getQuantitiesAvailable,
   getProductBatches,
 } from "@/lib/metrics";
@@ -265,5 +266,124 @@ describe("getProductBatches", () => {
   it("returns an empty array for a product with no arrived batches", async () => {
     const product = await createProduct();
     expect(await getProductBatches(testPrisma, product.id)).toEqual([]);
+  });
+});
+
+describe("computeDashboardStats", () => {
+  it("computes all-time profit/revenue/units-sold and counts active batches when range is null", async () => {
+    const { user, manufacturer, product, saleRoute } = await createBaseFixtures();
+    // Arrived batch, still has remaining stock after the sale below.
+    await createShipment({
+      manufacturerId: manufacturer.id,
+      productId: product.id,
+      loggedByUserId: user.id,
+      quantityOrdered: 10,
+      productCost: "50.00",
+      shippingFee: "0.00",
+      orderDate: "2026-01-01",
+      arrivalDate: "2026-01-02",
+    });
+    // Pending — must not count as an active batch.
+    await createShipment({
+      manufacturerId: manufacturer.id,
+      productId: product.id,
+      loggedByUserId: user.id,
+      quantityOrdered: 20,
+      productCost: "100.00",
+      shippingFee: "0.00",
+      orderDate: "2026-01-05",
+    });
+    await createSale(testPrisma, {
+      productId: product.id,
+      quantity: 3,
+      pricePerUnit: "10.00",
+      saleRouteId: saleRoute.id,
+      loggedByUserId: user.id,
+    });
+
+    const stats = await computeDashboardStats(testPrisma, null);
+    expect(stats.unitsSold).toBe(3);
+    expect(stats.totalRevenueCents).toBe(3000); // 3 * $10.00
+    expect(stats.totalProfitCents).toBe(3000 - 3 * 500); // cost basis: $5/unit * 3
+    expect(stats.activeBatches).toBe(1); // pending shipment excluded
+  });
+
+  it("scopes sales by saleDate and batches by arrivalDate within a given range", async () => {
+    // createSale always sets saleDate to "today" (no backdating), so
+    // historical sale dates are inserted directly via testPrisma here
+    // rather than through createSale.
+    const { user, manufacturer, product, saleRoute } = await createBaseFixtures();
+    // Arrived inside the range.
+    const inRangeShipment = await createShipment({
+      manufacturerId: manufacturer.id,
+      productId: product.id,
+      loggedByUserId: user.id,
+      quantityOrdered: 5,
+      productCost: "25.00",
+      shippingFee: "0.00",
+      orderDate: "2026-02-01",
+      arrivalDate: "2026-02-02",
+    });
+    // Sold inside the range.
+    const inRangeSale = await testPrisma.sale.create({
+      data: {
+        productId: product.id,
+        quantity: 2,
+        pricePerUnit: "20.00",
+        saleRouteId: saleRoute.id,
+        saleDate: new Date("2026-02-10T00:00:00.000Z"),
+        loggedByUserId: user.id,
+      },
+    });
+    await testPrisma.saleAllocation.create({
+      data: {
+        saleId: inRangeSale.id,
+        shipmentId: inRangeShipment.id,
+        quantity: 2,
+        unitStartIndex: 0,
+        costBasisCents: 1000, // 2 units @ $5/unit cost
+      },
+    });
+
+    // Arrived before the range — must be excluded from activeBatches.
+    const outOfRangeShipment = await createShipment({
+      manufacturerId: manufacturer.id,
+      productId: product.id,
+      loggedByUserId: user.id,
+      quantityOrdered: 5,
+      productCost: "25.00",
+      shippingFee: "0.00",
+      orderDate: "2026-01-01",
+      arrivalDate: "2026-01-02",
+    });
+    // Sold before the range — must be excluded from revenue/profit/units.
+    const outOfRangeSale = await testPrisma.sale.create({
+      data: {
+        productId: product.id,
+        quantity: 1,
+        pricePerUnit: "999.00",
+        saleRouteId: saleRoute.id,
+        saleDate: new Date("2026-01-15T00:00:00.000Z"),
+        loggedByUserId: user.id,
+      },
+    });
+    await testPrisma.saleAllocation.create({
+      data: {
+        saleId: outOfRangeSale.id,
+        shipmentId: outOfRangeShipment.id,
+        quantity: 1,
+        unitStartIndex: 0,
+        costBasisCents: 500,
+      },
+    });
+
+    const stats = await computeDashboardStats(testPrisma, {
+      from: new Date("2026-02-01T00:00:00.000Z"),
+      to: new Date("2026-02-28T00:00:00.000Z"),
+    });
+    expect(stats.unitsSold).toBe(2);
+    expect(stats.totalRevenueCents).toBe(4000); // 2 * $20.00
+    expect(stats.totalProfitCents).toBe(4000 - 1000);
+    expect(stats.activeBatches).toBe(1); // only the Feb-arrived batch
   });
 });

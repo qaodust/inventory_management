@@ -132,6 +132,60 @@ export async function getProductBatches(
   );
 }
 
+export interface DashboardStats {
+  totalProfitCents: number;
+  totalRevenueCents: number;
+  unitsSold: number;
+  activeBatches: number;
+}
+
+/**
+ * Dashboard summary stats. `range` scopes sales by saleDate and batches
+ * by arrivalDate (design.md: the date-range filter applies to all four
+ * stat cards); null means all-time, the Dashboard's default.
+ */
+export async function computeDashboardStats(
+  prisma: PrismaClient,
+  range: { from: Date; to: Date } | null
+): Promise<DashboardStats> {
+  const dateFilter = range ? { gte: range.from, lte: range.to } : undefined;
+
+  const sales = await prisma.sale.findMany({
+    where: dateFilter ? { saleDate: dateFilter } : undefined,
+    select: {
+      pricePerUnit: true,
+      quantity: true,
+      allocations: { select: { costBasisCents: true } },
+    },
+  });
+
+  let totalRevenueCents = 0;
+  let totalCostCents = 0;
+  let unitsSold = 0;
+  for (const sale of sales) {
+    totalRevenueCents += decimalToCents(sale.pricePerUnit) * sale.quantity;
+    totalCostCents += sale.allocations.reduce((sum, a) => sum + a.costBasisCents, 0);
+    unitsSold += sale.quantity;
+  }
+
+  const shipments = await prisma.shipment.findMany({
+    where: { arrivalDate: dateFilter ?? { not: null } },
+    select: { id: true },
+  });
+  const remainingMap = await readRemainingQty(
+    prisma,
+    shipments.map((s) => s.id)
+  );
+  const activeBatches = shipments.filter((s) => (remainingMap.get(s.id) ?? 0) > 0).length;
+
+  return {
+    totalProfitCents: totalRevenueCents - totalCostCents,
+    totalRevenueCents,
+    unitsSold,
+    activeBatches,
+  };
+}
+
 export interface ManufacturerStats {
   totalShipments: number;
   /** Average calendar days from orderDate to arrivalDate, over arrived shipments only. Null if none have arrived yet. */

@@ -19,8 +19,8 @@ Step-by-step build plan for the inventory app, derived from `vision.md` (require
 | 2 | Manufacturers | Complete |
 | 3 | Products | In Progress |
 | 4 | Shipments (Batches) | Complete |
-| 5 | Sales | In Progress |
-| 6 | Dashboard | Not Started |
+| 5 | Sales | Complete |
+| 6 | Dashboard | In Progress |
 | 7 | Reports / Metrics | Not Started |
 | 8 | Polish & Hardening | Not Started |
 | 9 | Post-Launch Backlog (future) | Not Started |
@@ -169,7 +169,7 @@ Step-by-step build plan for the inventory app, derived from `vision.md` (require
 
 ## Phase 5: Sales
 
-**Phase Status:** Implementation complete — pending user sign-off
+**Phase Status:** Complete
 **Goal:** Individual sales can be logged against FIFO batches with accurate profit calculation — the core value of the app.
 
 ### Tasks
@@ -185,27 +185,27 @@ Step-by-step build plan for the inventory app, derived from `vision.md` (require
 - [x] Implement sell-through time capture: when a batch's last unit sells, record/derive the sell-through duration (arrival date → that sale's date) for use in Phase 7 reporting and the Product detail Batches section. (Already implemented in Phase 0.5 via `computeSellThroughDate`.)
 
 ### Phase Testing (with user)
-- [ ] User logs a normal sale against a single batch and confirms the profit preview matches manual expectations.
-- [ ] User logs a sale that intentionally exceeds the oldest batch's remaining quantity, confirming it correctly spans into the next batch and splits cost basis.
-- [ ] User adds a new sale route inline and confirms it's available for future sales.
-- [ ] User sells out a batch entirely and confirms sell-through time appears correctly on the Product detail page.
-- [ ] User reviews Sales History and filters by date range, product, and route.
-- [ ] Two owners attempt simultaneous sales against the last stock and confirm overselling is prevented.
-- [ ] Verify fractional-cost reconciliation, and that editing/deleting a sale correctly recomputes inventory and allocations.
+- [x] User logs a normal sale against a single batch and confirms the profit preview matches manual expectations.
+- [x] User logs a sale that intentionally exceeds the oldest batch's remaining quantity, confirming it correctly spans into the next batch and splits cost basis.
+- [x] User adds a new sale route inline and confirms it's available for future sales.
+- [x] User sells out a batch entirely and confirms sell-through time appears correctly on the Product detail page.
+- [x] User reviews Sales History and filters by date range, product, and route.
+- [x] Two owners attempt simultaneous sales against the last stock and confirm overselling is prevented.
+- [x] Verify fractional-cost reconciliation, and that editing/deleting a sale correctly recomputes inventory and allocations.
 
 ---
 
 ## Phase 6: Dashboard
 
-**Phase Status:** Not Started
+**Phase Status:** Implementation complete — pending user sign-off
 **Goal:** Assemble the home page — by this point all underlying data (manufacturers, products, shipments, sales) is real, so this phase is mostly composition.
 
 ### Tasks
-- [ ] Build Dashboard page layout per `design.md`: quick-action buttons (Log a Sale, Log a Shipment) at top.
-- [ ] Build stat cards: Total Profit, Total Revenue, Units Sold, Active Batches — default all-time, with date-range filter.
-- [ ] Build Pending Deliveries section (reuses Phase 4 data).
-- [ ] Build Recent Sales section (reuses Phase 5 data).
-- [ ] Confirm bottom-nav (mobile) wiring: Dashboard, Sales, Shipments, More (Products/Manufacturers/Reports).
+- [x] Build Dashboard page layout per `design.md`: quick-action buttons (Log a Sale, Log a Shipment) at top. (`src/app/(app)/page.tsx`, replacing the `PlaceholderPage` stub.)
+- [x] Build stat cards: Total Profit, Total Revenue, Units Sold, Active Batches — default all-time, with date-range filter. (`computeDashboardStats` in `src/lib/metrics.ts`: Total Profit/Revenue/Units Sold scoped by `Sale.saleDate`, Active Batches — arrived shipments with remaining qty > 0 — scoped by `Shipment.arrivalDate`, both against the same selected range per design.md. `DashboardRangeFilter` client component drives `?range=month|year|custom&from=&to=` query params, mirroring the `SalesHistoryFilters` pattern; "All time" is the default with no query params.)
+- [x] Build Pending Deliveries section (reuses Phase 4 data). (`getPendingDeliveries` from `src/lib/shipments.ts`, already built in Phase 4 anticipating this.)
+- [x] Build Recent Sales section (reuses Phase 5 data). (Most recent 5 sales, product/qty/price/route/date, linking to each sale's detail page.)
+- [x] Confirm bottom-nav (mobile) wiring: Dashboard, Sales, Shipments, More (Products/Manufacturers/Reports). (Already correctly wired in `src/lib/nav.ts` since Phase 1; no changes needed.)
 
 ### Phase Testing (with user)
 - [ ] User opens the dashboard on PC and mobile and confirms stat totals match their own manual expectations from real data entered so far.
