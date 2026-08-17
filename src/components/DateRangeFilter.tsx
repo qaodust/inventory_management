@@ -9,7 +9,7 @@ const RANGE_OPTIONS = [
   { value: "custom", label: "Custom" },
 ] as const;
 
-export function DashboardRangeFilter() {
+export function DateRangeFilter() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();

@@ -2,30 +2,10 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { prisma } from "@/lib/prisma";
 import { decimalToCents, formatCents } from "@/lib/money";
-import { nyDateStringToUtcDate, nyTodayDateString, utcDateToDateString } from "@/lib/dates";
+import { resolveDateRangeParam, utcDateToDateString } from "@/lib/dates";
 import { computeDashboardStats } from "@/lib/metrics";
 import { getPendingDeliveries } from "@/lib/shipments";
-import { DashboardRangeFilter } from "@/components/DashboardRangeFilter";
-
-function resolveDateRange(
-  range: string | undefined,
-  from: string | undefined,
-  to: string | undefined
-): { from: Date; to: Date } | null {
-  const today = nyTodayDateString();
-  const [year, month] = today.split("-");
-
-  if (range === "month") {
-    return { from: nyDateStringToUtcDate(`${year}-${month}-01`), to: nyDateStringToUtcDate(today) };
-  }
-  if (range === "year") {
-    return { from: nyDateStringToUtcDate(`${year}-01-01`), to: nyDateStringToUtcDate(today) };
-  }
-  if (range === "custom" && from && to) {
-    return { from: nyDateStringToUtcDate(from), to: nyDateStringToUtcDate(to) };
-  }
-  return null;
-}
+import { DateRangeFilter } from "@/components/DateRangeFilter";
 
 export default async function DashboardPage({
   searchParams,
@@ -33,7 +13,7 @@ export default async function DashboardPage({
   searchParams: Promise<{ range?: string; from?: string; to?: string }>;
 }) {
   const { range, from, to } = await searchParams;
-  const dateRange = resolveDateRange(range, from, to);
+  const dateRange = resolveDateRangeParam(range, from, to);
 
   const [stats, pendingDeliveries, recentSales] = await Promise.all([
     computeDashboardStats(prisma, dateRange),
@@ -53,7 +33,7 @@ export default async function DashboardPage({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold">Dashboard</h1>
         <Suspense>
-          <DashboardRangeFilter />
+          <DateRangeFilter />
         </Suspense>
       </div>
 

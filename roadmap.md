@@ -20,8 +20,8 @@ Step-by-step build plan for the inventory app, derived from `vision.md` (require
 | 3 | Products | In Progress |
 | 4 | Shipments (Batches) | Complete |
 | 5 | Sales | Complete |
-| 6 | Dashboard | In Progress |
-| 7 | Reports / Metrics | Not Started |
+| 6 | Dashboard | Complete |
+| 7 | Reports / Metrics | In Progress |
 | 8 | Polish & Hardening | Not Started |
 | 9 | Post-Launch Backlog (future) | Not Started |
 
@@ -197,7 +197,7 @@ Step-by-step build plan for the inventory app, derived from `vision.md` (require
 
 ## Phase 6: Dashboard
 
-**Phase Status:** Implementation complete — pending user sign-off
+**Phase Status:** Complete
 **Goal:** Assemble the home page — by this point all underlying data (manufacturers, products, shipments, sales) is real, so this phase is mostly composition.
 
 ### Tasks
@@ -208,24 +208,24 @@ Step-by-step build plan for the inventory app, derived from `vision.md` (require
 - [x] Confirm bottom-nav (mobile) wiring: Dashboard, Sales, Shipments, More (Products/Manufacturers/Reports). (Already correctly wired in `src/lib/nav.ts` since Phase 1; no changes needed.)
 
 ### Phase Testing (with user)
-- [ ] User opens the dashboard on PC and mobile and confirms stat totals match their own manual expectations from real data entered so far.
-- [ ] User taps both quick-action buttons and confirms they land on the right forms.
-- [ ] User changes the date-range filter and confirms stat cards update accordingly.
-- [ ] User confirms Pending Deliveries and Recent Sales lists show accurate, current data.
+- [x] User opens the dashboard on PC and mobile and confirms stat totals match their own manual expectations from real data entered so far.
+- [x] User taps both quick-action buttons and confirms they land on the right forms.
+- [x] User changes the date-range filter and confirms stat cards update accordingly.
+- [x] User confirms Pending Deliveries and Recent Sales lists show accurate, current data.
 
 ---
 
 ## Phase 7: Reports / Metrics
 
-**Phase Status:** Not Started
+**Phase Status:** Implementation complete — pending user sign-off
 **Goal:** Deeper reporting views for business decision-making — the payoff of the batch/FIFO data model.
 
 ### Tasks
-- [ ] Build Reports page shell with tabs: Overview, By Product, By Manufacturer, By Route, and a global date-range filter, per `design.md`.
-- [ ] Build Overview tab (date-range-scoped totals + avg sell-through time).
-- [ ] Build By Product tab (per-product profit, units sold, avg sell-through time, sortable).
-- [ ] Build By Manufacturer tab (profit attributed through consumed manufacturer batches, avg delivery time, avg shipping fee, ratings, and reliability once a manufacturer has enough shipments with an expected-arrival date on file).
-- [ ] Build By Route tab (unit count, avg profit/unit, total profit per route).
+- [x] Build Reports page shell with tabs: Overview, By Product, By Manufacturer, By Route, and a global date-range filter, per `design.md`. (`src/app/(app)/reports/page.tsx`: query-param-driven tabs (`?tab=`), reusing the same `<DateRangeFilter />` component as the Dashboard — extracted/generalized from `DashboardRangeFilter` and renamed `DateRangeFilter` (`src/components/DateRangeFilter.tsx`), with the shared `resolveDateRangeParam` helper moved into `src/lib/dates.ts` so both pages resolve `?range=month|year|custom&from=&to=` identically. Filter persists across tab switches since it's independent of the `tab` param.)
+- [x] Build Overview tab (date-range-scoped totals + avg sell-through time). (`computeOverviewReport` in `src/lib/reports.ts` reuses `computeDashboardStats` for profit/revenue/units-sold and adds avg sell-through days, computed from arrived shipments whose sell-through date — via `computeSellThroughDate` — falls inside the range.)
+- [x] Build By Product tab (per-product profit, units sold, avg sell-through time, sortable). (`computeProductReport`; profit/units scoped by `Sale.saleDate`, avg sell-through scoped by sell-through date; only products with sales or a sell-through event in range are listed. Sortable via the shared `sortReportRows` helper and query-param-driven column-header links (`?sort=&dir=`), with PC table + mobile stacked-card layouts.)
+- [x] Build By Manufacturer tab (profit attributed through consumed manufacturer batches, avg delivery time, avg shipping fee, ratings, and reliability once a manufacturer has enough shipments with an expected-arrival date on file). (`computeManufacturerReport`; profit attributed per `SaleAllocation` — that allocation's share of its sale's revenue at the sale's uniform price/unit, minus its own cost basis, credited to the shipment's manufacturer — scoped by `saleDate`, correctly handling sales whose FIFO allocation spans batches from different manufacturers. Avg delivery days/avg shipping fee scoped by `orderDate` (a shipment event, not a sale event). Reliability reuses `MIN_SHIPMENTS_FOR_RELIABILITY` from `src/lib/manufacturers.ts` via a locally-scoped calculation in `reports.ts`, rather than adding a range param to the existing unscoped `computeReliability` used by the Manufacturer detail page. Ratings are never date-scoped — same exemption as Dashboard's Pending Deliveries.)
+- [x] Build By Route tab (unit count, avg profit/unit, total profit per route). (`computeRouteReport`, scoped by `saleDate`; only routes with a sale in range are listed.)
 
 ### Phase Testing (with user)
 - [ ] User cross-checks Overview totals against a manually tallied expectation for a known date range.

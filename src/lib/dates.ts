@@ -45,3 +45,29 @@ export function utcDateToDateString(date: Date): string {
   const day = String(date.getUTCDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
 }
+
+/**
+ * Resolves the `?range=month|year|custom&from=&to=` query params used by
+ * `DateRangeFilter` (Dashboard, Reports) into a concrete date range, or
+ * null for "all time" (the default — any unrecognized/missing range, or
+ * a "custom" range missing either endpoint, falls back to all-time).
+ */
+export function resolveDateRangeParam(
+  range: string | undefined,
+  from: string | undefined,
+  to: string | undefined
+): { from: Date; to: Date } | null {
+  const today = nyTodayDateString();
+  const [year, month] = today.split("-");
+
+  if (range === "month") {
+    return { from: nyDateStringToUtcDate(`${year}-${month}-01`), to: nyDateStringToUtcDate(today) };
+  }
+  if (range === "year") {
+    return { from: nyDateStringToUtcDate(`${year}-01-01`), to: nyDateStringToUtcDate(today) };
+  }
+  if (range === "custom" && from && to) {
+    return { from: nyDateStringToUtcDate(from), to: nyDateStringToUtcDate(to) };
+  }
+  return null;
+}
